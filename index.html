@@ -1,210 +1,254 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Game Literasi Interaktif</title>
-  <!-- Tailwind CSS CDN -->
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-  <!-- AlpineJS CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
-  <!-- Optional: Include a confetti library if kamu ingin menambahkan efek confetti misalnya https://www.npmjs.com/package/canvas-confetti -->
-  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
-  <style>
-    /* Animasi FadeIn sederhana */
-    .animate-fadeIn {
-      animation: fadeIn 1s ease-in-out;
-    }
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-    /* Efek parallax sederhana untuk background */
-    .parallax-bg {
-      background-attachment: fixed;
-      background-size: cover;
-    }
-  </style>
-</head>
-<body class="bg-gradient-to-br from-blue-200 via-purple-200 to-pink-200 min-h-screen flex items-center justify-center">
-  <div x-data="quizApp()" class="p-6 max-w-2xl mx-auto text-center bg-white rounded-3xl shadow-xl animate-fadeIn">
-    <h1 class="text-5xl font-bold mb-8 bg-gradient-to-r from-indigo-500 via-pink-500 to-yellow-500 text-transparent bg-clip-text animate-bounce">
-      Game Literasi Interaktif
-    </h1>
-    
-    <!-- Tampilan Awal: Pilih Kesulitan & Kategori -->
-    <template x-if="!category && !quizFinished && !showLeaderboard">
-      <div>
-        <h2 class="text-3xl mb-4">Pilih Tingkat Kesulitan</h2>
-        <div class="flex justify-center gap-6 mb-8">
-          <button @click="selectDifficulty('easy')" :class="difficulty=='easy' ? 'bg-green-400 text-white' : 'bg-gray-200'" class="px-6 py-3 rounded-lg shadow transition transform hover:scale-105">
-            Mudah
-          </button>
-          <button @click="selectDifficulty('normal')" :class="difficulty=='normal' ? 'bg-yellow-400 text-white' : 'bg-gray-200'" class="px-6 py-3 rounded-lg shadow transition transform hover:scale-105">
-            Normal
-          </button>
-          <button @click="selectDifficulty('hard')" :class="difficulty=='hard' ? 'bg-red-400 text-white' : 'bg-gray-200'" class="px-6 py-3 rounded-lg shadow transition transform hover:scale-105">
-            Sulit
-          </button>
-        </div>
-        <h2 class="text-3xl mb-4">Pilih Kategori Kuis</h2>
-        <div class="grid grid-cols-1 gap-4">
-          <button @click="selectCategory('umum')" class="bg-blue-500 hover:bg-blue-600 text-white p-4 rounded-2xl shadow-lg transition transform hover:scale-105">
-            Umum
-          </button>
-          <button @click="selectCategory('matematika')" class="bg-green-500 hover:bg-green-600 text-white p-4 rounded-2xl shadow-lg transition transform hover:scale-105">
-            Matematika
-          </button>
-          <button @click="selectCategory('polmanbabel')" class="bg-purple-500 hover:bg-purple-600 text-white p-4 rounded-2xl shadow-lg transition transform hover:scale-105">
-            Kampus Polman Babel
-          </button>
-        </div>
-      </div>
-    </template>
-    
-    <!-- Tampilan Quiz -->
-    <template x-if="category && !quizFinished">
-      <div class="animate-fadeIn">
-        <h2 class="text-3xl mb-4 font-semibold">Pertanyaan <span x-text="currentQuestion + 1"></span></h2>
-        <p class="mb-2 text-xl text-gray-600">Sisa waktu: <span class="font-bold text-red-500" x-text="timer"></span> detik</p>
-        <p class="mb-6 text-2xl font-medium bg-yellow-100 p-4 rounded-xl shadow" x-text="questions[category][currentQuestion].question"></p>
-        <div class="space-y-4">
-          <template x-for="(option, index) in questions[category][currentQuestion].options" :key="index">
-            <button @click="submitAnswer(option)" class="block w-full text-left border p-4 rounded-2xl hover:bg-gray-200 shadow transition transform hover:scale-105" :disabled="showFeedback">
-              <span x-text="option"></span>
-            </button>
-          </template>
-        </div>
-        <!-- Feedback animasi dengan transisi --> 
-        <div x-show="showFeedback" x-transition class="mt-4 p-4 rounded-2xl text-xl font-bold shadow" :class="isCorrect ? 'bg-green-300 text-green-900' : 'bg-red-300 text-red-900'">
-          <span x-text="isCorrect ? 'Jawaban benar!' : 'Jawaban salah atau waktu habis!'"></span>
-        </div>
-      </div>
-    </template>
-    
-    <!-- Tampilan Hasil Quiz -->
-    <template x-if="quizFinished">
-      <div class="animate-fadeIn">
-        <h2 class="text-4xl font-bold mb-4 text-green-700">Skor Anda: <span x-text="score"></span></h2>
-        <input type="text" x-model="playerName" placeholder="Masukkan nama Anda" class="border p-4 mb-4 rounded-2xl w-full text-center shadow" />
-        <button @click="saveRanking()" class="bg-yellow-500 hover:bg-yellow-600 text-white p-4 rounded-2xl w-full mb-4 shadow-lg transition transform hover:scale-105" :disabled="playerName === ''">
-          Simpan Ranking & Lihat Leaderboard
-        </button>
-        <button @click="resetQuiz()" class="bg-red-500 hover:bg-red-600 text-white p-4 rounded-2xl w-full shadow-lg transition transform hover:scale-105">
-          Main Lagi
-        </button>
-      </div>
-    </template>
-    
-    <!-- Tampilan Leaderboard -->
-    <template x-if="showLeaderboard && ranking.length > 0">
-      <div class="mt-10 animate-bounce">
-        <h2 class="text-3xl font-bold mb-4 text-indigo-700">Leaderboard Ranking</h2>
-        <ul class="text-left bg-gray-50 p-4 rounded-2xl shadow">
-          <template x-for="(entry, index) in ranking" :key="index">
-            <li class="mb-2 text-xl font-medium"> <span x-text="index + 1"></span>. <span x-text="entry.name"></span> - <span class="font-bold" x-text="entry.score"></span> poin</li>
-          </template>
-        </ul>
-        <button @click="resetQuiz()" class="mt-4 bg-blue-500 hover:bg-blue-600 text-white p-3 rounded-2xl shadow-lg transition transform hover:scale-105">
-          Kembali ke Beranda
-        </button>
-      </div>
-    </template>
-    
-    <footer class="mt-10 text-gray-500 text-sm">Dibuat oleh Indirokan Fadhilah</footer>
-  </div>
+<!DOCTYPE html>  
+<html lang="id">  
+<head>  
+  <meta charset="UTF-8" />  
+  <meta name="viewport" content="width=device-width, initial-scale=1" />  
+  <title>Game Literasi Interaktif</title>  
+
+  <!-- Tailwind CSS CDN -->  
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />  
   
-  <script>
-  function quizApp() {
-    return {
-      difficulty: 'normal',
-      category: '',
-      currentQuestion: 0,
-      score: 0,
-      playerName: '',
-      quizFinished: false,
-      timer: 15,
-      showFeedback: false,
-      isCorrect: false,
-      showLeaderboard: false,
-      ranking: [],
-      questions: {
-        umum: [
-          { question: "Ibu kota Indonesia adalah?", options: ["Jakarta", "Bandung", "Surabaya"], answer: "Jakarta" },
-          { question: "Hari Kemerdekaan Indonesia?", options: ["17 Agustus", "21 April", "1 Juni"], answer: "17 Agustus" },
-        ],
-        matematika: [
-          { question: "5 + 7 = ?", options: ["12", "10", "13"], answer: "12" },
-          { question: "10 x 2 = ?", options: ["20", "12", "15"], answer: "20" },
-        ],
-        polmanbabel: [
-          { question: "Singkatan Polman Babel?", options: ["Politeknik Manufaktur Negeri Bangka Belitung", "Politeknik Negeri Bandung", "Politeknik Bangka"], answer: "Politeknik Manufaktur Negeri Bangka Belitung" },
-          { question: "Lokasi kampus Polman Babel?", options: ["Pangkalpinang", "Sungailiat", "Belinyu"], answer: "Pangkalpinang" },
-        ],
-      },
-      selectDifficulty(level) {
-        this.difficulty = level;
-        this.timer = level === 'hard' ? 10 : level === 'easy' ? 20 : 15;
-      },
-      selectCategory(cat) {
-        this.category = cat;
-        this.currentQuestion = 0;
-        this.score = 0;
-        this.quizFinished = false;
-        this.timer = this.difficulty === 'hard' ? 10 : this.difficulty === 'easy' ? 20 : 15;
-        this.startTimer();
-      },
-      startTimer() {
-        clearInterval(this.timerInterval);
-        this.timerInterval = setInterval(() => {
-          if (this.timer > 0) {
-            this.timer--;
-          } else {
-            this.submitAnswer('');
-          }
-        }, 1000);
-      },
-      submitAnswer(option) {
-        clearInterval(this.timerInterval);
-        const question = this.questions[this.category][this.currentQuestion];
-        let correct = option === question.answer;
-        if (correct) {
-          this.score += 10;
-          // Contoh: Trigger confetti jika jawaban benar
-          if (typeof confetti === 'function') {
-            confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
-          }
-        }
-        this.isCorrect = correct;
-        this.showFeedback = true;
-        setTimeout(() => {
-          this.showFeedback = false;
-          this.currentQuestion++;
-          if (this.currentQuestion < this.questions[this.category].length) {
-            this.timer = this.difficulty === 'hard' ? 10 : this.difficulty === 'easy' ? 20 : 15;
-            this.startTimer();
-          } else {
-            this.quizFinished = true;
-          }
-        }, 1000);
-      },
-      resetQuiz() {
-        this.category = '';
-        this.currentQuestion = 0;
-        this.score = 0;
-        this.quizFinished = false;
-        this.timer = this.difficulty === 'hard' ? 10 : this.difficulty === 'easy' ? 20 : 15;
-        this.showLeaderboard = false;
-      },
-      saveRanking() {
-        const newRanking = [...this.ranking, { name: this.playerName, score: this.score }];
-        newRanking.sort((a, b) => b.score - a.score);
-        this.ranking = newRanking;
-        this.playerName = '';
-        this.category = '';
-        this.quizFinished = false;
-        this.showLeaderboard = true;
-      }
-    };
-  }
-</script>
+  <!-- Alpine.js CDN -->  
+  <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>  
+  
+  <!-- Confetti library (optional) -->  
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>  
+
+  <style>  
+    /* Animasi FadeIn */  
+    .animate-fadeIn {  
+      animation: fadeIn 1s ease-in-out;  
+    }  
+    @keyframes fadeIn {  
+      from { opacity: 0; }  
+      to { opacity: 1; }  
+    }  
+
+    /* Efek Parallax Sederhana */  
+    .parallax-bg {  
+      background-attachment: fixed;  
+      background-size: cover;  
+    }  
+  </style>  
+</head>  
+<body class="bg-gradient-to-br from-blue-200 via-purple-200 to-pink-200 min-h-screen flex items-center justify-center">  
+
+  <div x-data="quizApp()" class="p-6 max-w-2xl mx-auto text-center bg-white rounded-3xl shadow-xl animate-fadeIn">  
+    <h1 class="text-5xl font-bold mb-8 bg-gradient-to-r from-indigo-500 via-pink-500 to-yellow-500 text-transparent bg-clip-text animate-bounce">  
+      Game Literasi Interaktif  
+    </h1>  
+  
+    <!-- 1. Input NPM -->  
+    <template x-if="step === 1">  
+      <div>  
+        <h2 class="text-2xl mb-4 font-semibold">Masukkan NPM</h2>  
+        <input type="text" x-model="npm" class="border p-3 rounded-xl w-full text-center shadow" placeholder="Contoh: 1062260">  
+        <button @click="submitNPM()" class="mt-4 bg-blue-500 hover:bg-blue-600 text-white p-3 rounded-xl w-full shadow transition">Lanjut</button>  
+      </div>  
+    </template>  
+  
+    <!-- 2. Menampilkan info pengunjung -->  
+    <template x-if="step === 2">  
+      <div class="animate-fadeIn">  
+        <h2 class="text-2xl mb-2 font-semibold text-green-700">Selamat datang!</h2>  
+        <p class="text-lg mb-4">Anda adalah pengunjung ke-<span x-text="visitorCount"></span></p>  
+        <button @click="nextStep()" class="bg-indigo-500 hover:bg-indigo-600 text-white px-6 py-2 rounded-xl shadow">Lanjut</button>  
+      </div>  
+    </template>  
+  
+    <!-- 3. Menampilkan Data Mahasiswa -->  
+    <template x-if="step === 3 && studentData">  
+      <div class="animate-fadeIn">  
+        <h2 class="text-2xl font-semibold mb-2 text-gray-800">Data Mahasiswa</h2>  
+        <img :src="studentData.capture" alt="Foto Mahasiswa" class="w-32 h-32 object-cover mx-auto rounded-full mb-4 shadow">  
+        <p class="text-xl font-bold" x-text="studentData.nama"></p>  
+        <p class="text-gray-600 mb-2">NPM: <span x-text="studentData.npm"></span></p>  
+        <button @click="nextStep()" class="mt-4 bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-xl shadow">Lanjut ke Kategori Soal</button>  
+      </div>  
+    </template>  
+  
+    <!-- 4. Pilih Kategori Soal -->  
+    <template x-if="step === 4">  
+      <div>  
+        <h2 class="text-2xl mb-4 font-semibold">Pilih Kategori Kuis</h2>  
+        <div class="grid grid-cols-1 gap-4">  
+          <button @click="selectCategory('umum')" class="bg-blue-500 hover:bg-blue-600 text-white p-4 rounded-2xl shadow-lg transition transform hover:scale-105">Umum</button>  
+          <button @click="selectCategory('matematika')" class="bg-green-500 hover:bg-green-600 text-white p-4 rounded-2xl shadow-lg transition transform hover:scale-105">Matematika</button>  
+          <button @click="selectCategory('polmanbabel')" class="bg-purple-500 hover:bg-purple-600 text-white p-4 rounded-2xl shadow-lg transition transform hover:scale-105">Kampus Polman Babel</button>  
+        </div>  
+      </div>  
+    </template>  
+  
+    <!-- 5. Kuis -->  
+    <template x-if="category && !quizFinished">  
+      <div class="animate-fadeIn">  
+        <h2 class="text-3xl mb-4 font-semibold">Pertanyaan <span x-text="currentQuestion + 1"></span></h2>  
+        <p class="mb-2 text-xl text-gray-600">Sisa waktu: <span class="font-bold text-red-500" x-text="timer"></span> detik</p>  
+        <p class="mb-6 text-2xl font-medium bg-yellow-100 p-4 rounded-xl shadow" x-text="questions[category][currentQuestion].question"></p>  
+        <div class="space-y-4">  
+          <template x-for="(option, index) in questions[category][currentQuestion].options" :key="index">  
+            <button @click="submitAnswer(option)" class="block w-full text-left border p-4 rounded-2xl hover:bg-gray-200 shadow transition transform hover:scale-105" :disabled="showFeedback">  
+              <span x-text="option"></span>  
+            </button>  
+          </template>  
+        </div>  
+        <div x-show="showFeedback" x-transition class="mt-4 p-4 rounded-2xl text-xl font-bold shadow" :class="isCorrect ? 'bg-green-300 text-green-900' : 'bg-red-300 text-red-900'">  
+          <span x-text="isCorrect ? 'Jawaban benar!' : 'Jawaban salah atau waktu habis!'"></span>  
+        </div>  
+      </div>  
+    </template>  
+  
+    <!-- 6. Tampilkan Nilai -->  
+    <template x-if="quizFinished && !showLeaderboard">  
+      <div class="animate-fadeIn">  
+        <h2 class="text-4xl font-bold mb-4 text-green-700">Skor Anda: <span x-text="score"></span></h2>  
+        <button @click="saveRanking()" class="bg-yellow-500 hover:bg-yellow-600 text-white p-4 rounded-2xl w-full mb-4 shadow-lg transition transform hover:scale-105">  
+          Simpan Ranking & Lihat Statistik  
+        </button>  
+      </div>  
+    </template>  
+  
+    <!-- 7. Leaderboard / Statistik -->  
+    <template x-if="showLeaderboard && ranking.length > 0">  
+      <div class="mt-10 animate-fadeIn">  
+        <h2 class="text-3xl font-bold mb-4 text-indigo-700">Statistik & Leaderboard</h2>  
+        <ul class="text-left bg-gray-50 p-4 rounded-2xl shadow">  
+          <template x-for="(entry, index) in ranking" :key="index">  
+            <li class="mb-2 text-xl font-medium">  
+              <span x-text="index + 1"></span>. <span x-text="entry.name"></span> - <span class="font-bold" x-text="entry.score"></span> poin  
+            </li>  
+          </template>  
+        </ul>  
+        <button @click="resetQuiz()" class="mt-4 bg-blue-500 hover:bg-blue-600 text-white p-3 rounded-2xl shadow-lg transition transform hover:scale-105">  
+          Main Lagi  
+        </button>  
+      </div>  
+    </template>  
+  
+    <footer class="mt-10 text-gray-500 text-sm">Dibuat oleh Indirokan Fadhilah</footer>  
+  </div>  
+
+  <script>  
+    function quizApp() {  
+      return {  
+        step: 1,  
+        npm: '',  
+        visitorCount: 0,  
+        studentData: null,  
+        category: '',  
+        questions: {  
+          umum: [  
+            { question: "Apa warna langit?", options: ["Biru", "Merah", "Hijau"], answer: "Biru" }  
+          ],  
+          matematika: [  
+            { question: "2 + 2 = ?", options: ["3", "4", "5"], answer: "4" }  
+          ],  
+          polmanbabel: [  
+            { question: "Polman Babel berlokasi di?", options: ["Bangka", "Jakarta", "Surabaya"], answer: "Bangka" }  
+          ]  
+        },  
+        currentQuestion: 0,  
+        timer: 10,  
+        timerInterval: null,  
+        showFeedback: false,  
+        isCorrect: false,  
+        score: 0,  
+        quizFinished: false,  
+        ranking: [],  
+        showLeaderboard: false,  
+  
+        async submitNPM() {  
+          try {  
+            const res = await fetch('data/kelas.json');   
+            const data = await res.json();  
+
+            const found = data.find(mhs => mhs.npm === this.npm);  
+            if (found) {  
+              this.studentData = found;  
+              this.step = 2;  
+              this.visitorCount = Math.floor(Math.random() * 500 + 1); // contoh visitor count random  
+            } else {  
+              alert('NPM tidak ditemukan di database.');  
+            }  
+          } catch (error) {  
+            console.error("Gagal memuat data kelas.json:", error);  
+          }  
+        },  
+
+        nextStep() {  
+          this.step++;  
+        },  
+  
+        selectCategory(cat) {  
+          this.category = cat;  
+          this.step++;  
+          this.startQuiz();  
+        },  
+  
+        startQuiz() {  
+          this.currentQuestion = 0;  
+          this.score = 0;  
+          this.quizFinished = false;  
+          this.startTimer();  
+        },  
+  
+        startTimer() {  
+          this.timer = 10;  
+          this.timerInterval = setInterval(() => {  
+            if (this.timer > 0) {  
+              this.timer--;  
+            } else {  
+              clearInterval(this.timerInterval);  
+              this.showFeedback = true;  
+              this.isCorrect = false;  
+              setTimeout(() => this.nextQuestion(), 1500);  
+            }  
+          }, 1000);  
+        },  
+  
+        submitAnswer(option) {  
+          clearInterval(this.timerInterval);  
+          const current = this.questions[this.category][this.currentQuestion];  
+          this.isCorrect = option === current.answer;  
+          if (this.isCorrect) this.score += 10;  
+          this.showFeedback = true;  
+          setTimeout(() => this.nextQuestion(), 1500);  
+        },  
+  
+        nextQuestion() {  
+          this.showFeedback = false;  
+          this.currentQuestion++;  
+          if (this.currentQuestion < this.questions[this.category].length) {  
+            this.startTimer();  
+          } else {  
+            this.quizFinished = true;  
+          }  
+        },  
+  
+        saveRanking() {  
+          if (!this.studentData) return;  
+
+          const newEntry = {  
+            name: this.studentData.nama,  
+            score: this.score,  
+          };  
+
+          this.ranking.push(newEntry);  
+          this.ranking.sort((a, b) => b.score - a.score);  
+          this.showLeaderboard = true;  
+        },  
+
+        resetQuiz() {  
+          this.step = 1;  
+          this.npm = '';  
+          this.category = '';  
+          this.currentQuestion = 0;  
+          this.quizFinished = false;  
+          this.showLeaderboard = false;  
+          this.ranking = [];  
+        }  
+      };  
+    }  
+  </script>  
+</body>  
+</html>  
