@@ -92,7 +92,7 @@
         </div>
       </template>
   
-      <footer class="mt-10 text-gray-500 text-sm">Dibuat oleh Indirokan Fadhilah</footer>
+      <footer class="mt-10 text-gray-500 text-sm">perpustakaan Polman babel</footer>
     </div>
   </x-layout>
   
