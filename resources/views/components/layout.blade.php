@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+
   <title>Game Literasi Interaktif</title>
 
   <!-- Tailwind CSS CDN -->
@@ -45,16 +47,9 @@
         studentData: null,
         category: '',
         questions: {
-          umum: [
-            { question: "Apa warna langit?", options: ["Biru", "Merah", "Hijau"], answer: "Biru" },
-            // Tambah pertanyaan lainnya
-          ],
-          matematika: [
-            { question: "2 + 2 = ?", options: ["3", "4", "5"], answer: "4" },
-          ],
-          polmanbabel: [
-            { question: "Polman Babel berlokasi di?", options: ["Bangka", "Jakarta", "Surabaya"], answer: "Bangka" },
-          ]
+          umum: [],
+          matematika: [],
+          polmanbabel: []
         },
         currentQuestion: 0,
         timer: 10,
@@ -68,102 +63,155 @@
         showLeaderboard: false,
   
         async submitNPM() {
-        try {
-          const res = await fetch('/kelas.json');
-          const data = await res.json();
-
-          const found = data.find(mhs => mhs.npm === this.npm);
-          if (found) {
-            this.studentData = found;
-            this.step = 2;
-            this.visitorCount = Math.floor(Math.random() * 500 + 1); // contoh visitor count random
-          } else {
-            alert('NPM tidak ditemukan di database.');
-          }
-        } catch (error) {
-          console.error("Gagal memuat data kelas.json:", error);
-        }
-      },
-
-      nextStep() {
-        this.step++;
-      },
-  
-        selectCategory(cat) {
-          this.category = cat;
-          this.step++;
-          this.startQuiz();
-        },
-  
-        startQuiz() {
-          this.currentQuestion = 0;
-          this.score = 0;
-          this.quizFinished = false;
-          this.startTimer();
-        },
-  
-        startTimer() {
-          this.timer = 10;
-          this.timerInterval = setInterval(() => {
-            if (this.timer > 0) {
-              this.timer--;
-            } else {
-              clearInterval(this.timerInterval);
-              this.showFeedback = true;
-              this.isCorrect = false;
-              setTimeout(() => this.nextQuestion(), 1500);
+          try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+            if (!csrfToken) {
+              alert("CSRF token tidak ditemukan.");
+              return;
             }
-          }, 1000);
-        },
-  
-        submitAnswer(option) {
-          clearInterval(this.timerInterval);
-          const current = this.questions[this.category][this.currentQuestion];
-          this.isCorrect = option === current.answer;
-          if (this.isCorrect) this.score += 10;
-          this.showFeedback = true;
-          setTimeout(() => this.nextQuestion(), 1500);
-        },
-  
-        nextQuestion() {
-          this.showFeedback = false;
-          this.currentQuestion++;
-          if (this.currentQuestion < this.questions[this.category].length) {
-            this.startTimer();
-          } else {
-            this.quizFinished = true;
+
+            // Fetch kelas.json dari URL
+            const kelasRes = await fetch('http://127.0.0.1:8000/kelas.json');
+            if (!kelasRes.ok) {
+              const errorText = await kelasRes.text();
+              console.error("Fetch kelas.json gagal:", errorText);
+              throw new Error("Gagal ambil kelas.json.");
+            }
+
+            const kelasData = await kelasRes.json();
+            const found = kelasData.find(mhs => mhs.npm === this.npm);
+
+            if (found) {
+              this.studentData = found;
+
+              // Kirim ke server jika valid
+              const response = await fetch('/submit-npm', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'X-CSRF-TOKEN': csrfToken,
+                },
+                body: JSON.stringify({ npm: this.npm })
+              });
+
+              if (!response.ok) {
+                const errorText = await response.text();
+                console.error("Fetch /submit-npm gagal:", errorText);
+                throw new Error("Gagal kirim ke server.");
+              }
+
+              const res = await response.json();
+              this.visitorCount = res.visitor_number;
+              this.step = 2;
+
+            } else {
+              alert("NPM tidak ditemukan di daftar kelas.");
+            }
+
+          } catch (error) {
+            alert("Gagal memproses data NPM.");
+            console.error("submitNPM error:", error);
           }
         },
-  
-          saveRanking() {
-          if (!this.studentData) return;
 
-          const newEntry = {
-            name: this.studentData.nama,
-            score: this.score,
-          };
+        nextStep() {
+        this.step = 3;
+      },
 
-          this.ranking.push(newEntry);
-          this.ranking.sort((a, b) => b.score - a.score);
-          this.showLeaderboard = true;
-        },
+      async selectCategory(cat) {
+      this.category = cat;
+      this.step++;
+      
+      // Fetch questions from the server based on selected category
+      try {
+        const res = await fetch(`http://127.0.0.1:8000/questions/${this.category}`);
+        const data = await res.json();
 
-  
-        resetQuiz() {
-          this.step = 1;
-          this.npm = '';
-          this.playerName = '';
-          this.category = '';
-          this.currentQuestion = 0;
-          this.quizFinished = false;
-          this.showLeaderboard = false;
-          this.ranking = [];
+        // Format questions for quiz
+        this.questions[this.category] = data.map(q => ({
+          question: q.pertanyaan,
+          options: JSON.parse(q.pilihan_jawaban), // Parse the options to an array
+          answerIndex: q.jawaban_benar, // Store the correct answer index
+        }));
+
+        this.startQuiz();
+      } catch (error) {
+        console.error("Error fetching questions:", error);
+      }
+    },
+
+    startQuiz() {
+      this.currentQuestion = 0;
+      this.score = 0;
+      this.quizFinished = false;
+      this.startTimer();
+    },
+
+    startTimer() {
+      this.timer = 10;
+      this.timerInterval = setInterval(() => {
+        if (this.timer > 0) {
+          this.timer--;
+        } else {
+          clearInterval(this.timerInterval);
+          this.showFeedback = true;
+          this.isCorrect = false;
+          setTimeout(() => this.nextQuestion(), 1500);
         }
+      }, 1000);
+    },
+
+    submitAnswer(option) {
+      clearInterval(this.timerInterval);
+      const current = this.questions[this.category][this.currentQuestion];
+      
+      // Get the index of the selected option
+      const selectedOptionIndex = current.options.indexOf(option);
+      
+      // Check if the selected option index matches the correct answer index
+      this.isCorrect = selectedOptionIndex === current.answerIndex;
+      
+      if (this.isCorrect) this.score += 10;
+      
+      this.showFeedback = true;
+      setTimeout(() => this.nextQuestion(), 1500);
+    },
+
+    nextQuestion() {
+      this.showFeedback = false;
+      this.currentQuestion++;
+      if (this.currentQuestion < this.questions[this.category].length) {
+        this.startTimer();
+      } else {
+        this.quizFinished = true;
+      }
+    },
+
+    saveRanking() {
+      if (!this.studentData) return;
+      const newEntry = {
+        name: this.studentData.nama,
+        score: this.score,
+      };
+      this.ranking.push(newEntry);
+      this.ranking.sort((a, b) => b.score - a.score);
+      this.showLeaderboard = true;
+    },
+
+    resetQuiz() {
+      this.step = 2;
+      this.npm = '';
+      this.playerName = '';
+      this.category = '';
+      this.currentQuestion = 0;
+      this.quizFinished = false;
+      this.showLeaderboard = false;
+      this.ranking = [];
+    }
+
       };
     }
-  </script>
-  
+</script>
 
- 
 </body>
 </html>

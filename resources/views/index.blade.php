@@ -17,24 +17,14 @@
       <template x-if="step === 2">
         <div class="animate-fadeIn">
           <h2 class="text-2xl mb-2 font-semibold text-green-700">Selamat datang!</h2>
+          <p class="text-lg mb-1">Halo, <span x-text="studentData.nama"></span> (NPM: <span x-text="npm"></span>)</p>
           <p class="text-lg mb-4">Anda adalah pengunjung ke-<span x-text="visitorCount"></span></p>
           <button @click="nextStep()" class="bg-indigo-500 hover:bg-indigo-600 text-white px-6 py-2 rounded-xl shadow">Lanjut</button>
         </div>
       </template>
-  
-      <!-- 3. Menampilkan Data Mahasiswa -->
-      <template x-if="step === 3 && studentData">
-        <div class="animate-fadeIn">
-          <h2 class="text-2xl font-semibold mb-2 text-gray-800">Data Mahasiswa</h2>
-          <img :src="studentData.capture" alt="Foto Mahasiswa" class="w-32 h-32 object-cover mx-auto rounded-full mb-4 shadow">
-          <p class="text-xl font-bold" x-text="studentData.nama"></p>
-          <p class="text-gray-600 mb-2">NPM: <span x-text="studentData.npm"></span></p>
-          <button @click="nextStep()" class="mt-4 bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-xl shadow">Lanjut ke Kategori Soal</button>
-        </div>
-      </template>
-  
+
       <!-- 4. Pilih Kategori Soal -->
-      <template x-if="step === 4">
+      <template x-if="step === 3">
         <div>
           <h2 class="text-2xl mb-4 font-semibold">Pilih Kategori Kuis</h2>
           <div class="grid grid-cols-1 gap-4">
@@ -92,7 +82,7 @@
         </div>
       </template>
   
-      <footer class="mt-10 text-gray-500 text-sm">perpustakaan Polman babel</footer>
+      {{-- <footer class="mt-10 text-gray-500 text-sm"></footer> --}}
     </div>
   </x-layout>
   

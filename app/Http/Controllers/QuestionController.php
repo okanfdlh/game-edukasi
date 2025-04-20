@@ -43,4 +43,10 @@ class QuestionController extends Controller
         $scores = Score::all()->sortByDesc('nilai');
         return view('question.ranking', compact('scores'));
     }
+    public function byCategory($category)
+    {
+        $questions = Question::where('jenis_soal', $category)->get();
+
+        return response()->json($questions);
+    }
 }
