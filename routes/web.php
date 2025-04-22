@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\QuizVisitor;
 use App\Http\Controllers\AdminController;
 use App\Models\Question;
+use App\Http\Controllers\AuthController;
 
 Route::get('/welcome', function () {
     return view('welcome');
@@ -48,15 +49,22 @@ Route::post('/submit-npm', function (Request $request) {
 Route::get('/quiz-questions', [QuestionController::class, 'getQuestionsByCategory']);
 
 //admin
-Route::prefix('admin')->name('admin.')->group(function () {
+// Auth routes
+Route::get('/login', [AuthController::class, 'showLoginForm'])->name('login');
+Route::post('/login', [AuthController::class, 'login']);
+Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+
+// Admin area (protected)
+Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
     Route::get('/questions', [AdminController::class, 'index'])->name('index');
-    Route::get('/visitors', [AdminController::class, 'visitorsToday'])->name('visitors');
     Route::post('/questions', [AdminController::class, 'createQuestion'])->name('createQuestion');
     Route::get('/questions/{question}/edit', [AdminController::class, 'editQuestion'])->name('editQuestion');
     Route::put('/questions/{question}', [AdminController::class, 'updateQuestion'])->name('updateQuestion');
     Route::delete('/questions/{question}', [AdminController::class, 'destroyQuestion'])->name('destroyQuestion');
+    
+    Route::get('/visitors', [AdminController::class, 'visitorsToday'])->name('visitors');
+    Route::get('/visitors/filter', [AdminController::class, 'visitorfilter'])->name('visitors.filter');
 });
-Route::get('/admin/visitors/filter', [AdminController::class, 'visitorfilter'])->name('admin.visitors.filter');
 
 //api
 Route::get('/questions/{category}', function ($category) {
