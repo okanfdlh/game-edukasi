@@ -56,6 +56,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::put('/questions/{question}', [AdminController::class, 'updateQuestion'])->name('updateQuestion');
     Route::delete('/questions/{question}', [AdminController::class, 'destroyQuestion'])->name('destroyQuestion');
 });
+Route::get('/admin/visitors/filter', [AdminController::class, 'visitorfilter'])->name('admin.visitors.filter');
 
 //api
 Route::get('/questions/{category}', function ($category) {

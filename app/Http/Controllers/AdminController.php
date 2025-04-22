@@ -79,4 +79,19 @@ class AdminController extends Controller
         $question->delete();
         return redirect()->route('admin.index')->with('success', 'Soal kuis berhasil dihapus!');
     }
+
+//filter hari
+public function visitorfilter(Request $request)
+{
+    $query = QuizVisitor::query();
+
+    if ($request->filled('tanggal')) {
+        $query->whereDate('visit_date', $request->tanggal);
+    }
+
+    $visitors = $query->get();
+
+    return view('admin.visitors', compact('visitors'));
+}
+
 }
